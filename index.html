@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>祐希家 FIREシミュレーション</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-dark: #047857;
+      --fire: #f59e0b;
+      --fire-bg: #fffbeb;
+      --bg: #f0fdf4;
+      --surface: #ffffff;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(5,150,105,.07);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0d9488 100%);
+      color: white; padding: 52px 24px 72px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .header::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 75% 40%, rgba(16,185,129,.2) 0%, transparent 60%); }
+    .header-inner { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; }
+    .header-tag { display: inline-block; background: rgba(16,185,129,.2); border: 1px solid rgba(110,231,183,.4); color: #6ee7b7; font-size: 11px; font-weight: 700; letter-spacing: .12em; padding: 5px 16px; border-radius: 100px; margin-bottom: 20px; }
+    .header h1 { font-size: clamp(26px, 5.5vw, 46px); font-weight: 900; line-height: 1.2; margin-bottom: 12px; }
+    .header h1 em { color: #6ee7b7; font-style: normal; }
+    .header p { font-size: 15px; color: rgba(255,255,255,.7); }
+    .fire-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--fire); color: #1c1917; font-size: 14px; font-weight: 700; padding: 9px 22px; border-radius: 100px; margin-top: 20px; box-shadow: 0 4px 16px rgba(245,158,11,.4); }
+
+    /* Status bar */
+    .statusbar {
+      display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+      max-width: 1120px; margin: 0 auto; padding: 8px 16px 0;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+    .status-dot.err { background: #ef4444; }
+    .status-dot.loading { background: var(--fire); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .refresh-btn {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      padding: 3px 10px; font-size: 11px; font-family: inherit; cursor: pointer; color: var(--text-muted);
+    }
+    .refresh-btn:hover { background: var(--bg); }
+
+    /* Layout */
+    .main { max-width: 1120px; margin: -36px auto 0; padding: 0 16px 64px; }
+
+    /* Loading / Error overlay */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(240,253,244,.9);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; gap: 16px;
+    }
+    .overlay.hidden { display: none; }
+    .spinner { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay p { color: var(--text-muted); font-size: 14px; }
+    .error-box { background: white; border: 1px solid #fca5a5; border-radius: 14px; padding: 28px 32px; max-width: 480px; text-align: center; }
+    .error-box h3 { color: #dc2626; font-size: 16px; margin-bottom: 10px; }
+    .error-box p { font-size: 13px; color: var(--text-muted); white-space: pre-wrap; word-break: break-word; line-height: 1.8; }
+    .error-box ol { text-align: left; margin-top: 12px; font-size: 12px; color: var(--text); padding-left: 18px; line-height: 2; }
+    .retry-btn { margin-top: 16px; background: var(--primary); color: white; border: none; border-radius: 8px; padding: 9px 20px; font-family: inherit; font-size: 13px; cursor: pointer; }
+    .retry-btn:hover { background: var(--primary-dark); }
+
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+    .card { background: var(--surface); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .card-icon { font-size: 22px; margin-bottom: 10px; }
+    .card-label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .06em; margin-bottom: 6px; }
+    .card-val { font-size: clamp(18px, 3vw, 26px); font-weight: 900; line-height: 1; margin-bottom: 4px; }
+    .card-val.g { color: var(--primary); }
+    .card-val.f { color: var(--fire); }
+    .card-sub { font-size: 12px; color: var(--text-muted); }
+
+    /* Section */
+    .sec { margin-bottom: 28px; }
+    .sec-title { font-size: 17px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .sec-title::before { content: ''; display: block; width: 4px; height: 20px; background: var(--primary); border-radius: 2px; }
+    .chart-card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .chart-wrap { position: relative; height: 380px; }
+    .chart-wrap.sm { height: 320px; }
+
+    /* Legend */
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .anote { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+    .anote span { display: flex; align-items: center; gap: 6px; }
+    .adash { width: 20px; height: 0; border-top: 2px dashed; }
+
+    /* Timeline */
+    .tl-scroll { overflow-x: auto; padding: 8px 0 12px; }
+    .tl-track { display: flex; align-items: center; position: relative; min-width: 820px; padding: 12px 20px; }
+    .tl-track::before { content: ''; position: absolute; top: 50%; left: 20px; right: 20px; height: 3px; background: linear-gradient(90deg, #6ee7b7, #fbbf24); transform: translateY(-50%); }
+    .tl-item { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; cursor: pointer; }
+    .tl-bubble { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: 11px; text-align: center; max-width: 96px; margin-bottom: 8px; transition: transform .2s, box-shadow .2s; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .tl-item:hover .tl-bubble { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .tl-item.fire .tl-bubble { border-color: var(--fire); background: var(--fire-bg); }
+    .tl-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 3px solid white; box-shadow: 0 0 0 2px var(--primary); z-index: 1; flex-shrink: 0; }
+    .tl-item.fire .tl-dot { width: 20px; height: 20px; background: var(--fire); box-shadow: 0 0 0 3px var(--fire), 0 0 14px rgba(245,158,11,.4); }
+    .tl-year { font-size: 13px; font-weight: 900; color: var(--primary); display: block; }
+    .tl-item.fire .tl-year { color: var(--fire); }
+    .tl-label { color: var(--text-muted); line-height: 1.4; }
+    .tl-icon { font-size: 15px; display: block; margin-bottom: 2px; }
+
+    /* Table */
+    .tbl-wrap { overflow: auto; max-height: 420px; border-radius: 10px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { background: #064e3b; color: white; padding: 10px 14px; text-align: right; font-size: 11px; font-weight: 700; letter-spacing: .04em; position: sticky; top: 0; white-space: nowrap; z-index: 2; }
+    thead th:first-child { text-align: left; }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    tbody tr:hover { background: #f0fdf4; }
+    tbody tr.fr { background: var(--fire-bg); }
+    tbody tr.fr td { font-weight: 600; }
+    tbody td { padding: 8px 14px; text-align: right; color: var(--text-muted); white-space: nowrap; }
+    tbody td:first-child { text-align: left; color: var(--text); font-weight: 500; }
+    .pos { color: #059669 !important; }
+    .neg { color: #ef4444 !important; }
+    .tot { color: var(--primary) !important; font-weight: 700 !important; }
+
+    @media (max-width: 700px) {
+      .cards { grid-template-columns: repeat(2, 1fr); }
+      .chart-wrap { height: 260px; }
+      .chart-wrap.sm { height: 220px; }
+      .header { padding: 36px 16px 56px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>Google スプレッドシートからデータを取得中…</p>
+</div>
+
+<!-- Error overlay -->
+<div class="overlay hidden" id="errorOverlay">
+  <div class="error-box">
+    <h3>⚠️ データ取得エラー</h3>
+    <p id="errorMsg"></p>
+    <ol>
+      <li>スプレッドシートを開く</li>
+      <li>「共有」→「リンクを知っている全員」→「閲覧者」に設定</li>
+      <li>このページを再読み込み</li>
+    </ol>
+    <button class="retry-btn" onclick="init()">再試行</button>
+  </div>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-tag">🔥 FIRE SIMULATION 2024–2083</div>
+    <h1>祐希家の<em>財務ロードマップ</em></h1>
+    <p>夫婦それぞれ30歳から始まる60年間の資産推移シミュレーション</p>
+    <div class="fire-chip">🎉 完全FIRE達成予定：2055年（夫・妻ともに61歳）</div>
+  </div>
+</header>
+
+<div class="statusbar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">読み込み中…</span>
+  <button class="refresh-btn" onclick="init()">↺ 再取得</button>
+</div>
+
+<div class="main" id="mainContent" style="visibility:hidden">
+
+  <div class="cards">
+    <div class="card"><div class="card-icon">💼</div><div class="card-label">現在の総資産（2024年）</div><div class="card-val g" id="card-current">–</div><div class="card-sub">夫30歳・妻30歳</div></div>
+    <div class="card"><div class="card-icon">🔥</div><div class="card-label">完全FIRE達成年</div><div class="card-val f">2055年</div><div class="card-sub">夫61歳・妻61歳（あと31年）</div></div>
+    <div class="card"><div class="card-icon">💰</div><div class="card-label">FIRE時の総資産</div><div class="card-val g" id="card-fire">–</div><div class="card-sub">株式・現金・確定拠出年金</div></div>
+    <div class="card"><div class="card-icon">📊</div><div class="card-label">4%ルール 年間取崩可能額</div><div class="card-val" id="card-4pct">–</div><div class="card-sub" id="card-4pct-sub">–</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">資産推移グラフ</div>
+    <div class="chart-card">
+      <div class="chart-wrap"><canvas id="assetChart"></canvas></div>
+      <div class="anote">
+        <span><span class="adash" style="border-color:var(--fire)"></span><span style="color:var(--fire)">夫セミFIRE（2045年）</span></span>
+        <span><span class="adash" style="border-color:#ef4444"></span><span style="color:#ef4444">完全FIRE（2055年）</span></span>
+        <span><span class="adash" style="border-color:#6366f1"></span><span style="color:#6366f1">公的年金開始（2059年）</span></span>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>総資産</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6"></div>現金</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#8b5cf6"></div>株式（投資信託）</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#f97316"></div>確定拠出年金（夫）</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#fbbf24"></div>確定拠出年金（妻）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">収支バランス</div>
+    <div class="chart-card">
+      <div class="chart-wrap sm"><canvas id="flowChart"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(16,185,129,.75)"></div>年間収入</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,.75)"></div>年間支出（マイナス表示）</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#6366f1"></div>収支差（折れ線）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">ライフイベント タイムライン</div>
+    <div class="chart-card">
+      <div class="tl-scroll"><div class="tl-track" id="timeline"></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">年次データ（60年間）</div>
+    <div class="chart-card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>年度</th><th>夫</th><th>年間収入</th><th>年間支出</th><th>収支差</th>
+            <th>現金</th><th>株式</th><th>確定拠出(夫)</th><th>確定拠出(妻)</th><th>総資産</th>
+          </tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── 設定 ─────────────────────────────────────────────
+const CONFIG = {
+  sheetId:   '1UtTal570o5wHbQXaZisO6IRQed6mt9TL8j8L45yp1eU',
+  sheetName: '計画',
+  labelCol:  3,    // 行ラベルが入っている列のインデックス（0始まり）
+  yearStart: 2024,
+  yearCount: 60,
+};
+
+// シート内の行ラベル（複数候補を指定可）
+const ROW_LABELS = {
+  totalIncome:   ['収入合計', '収入計'],
+  totalExpenses: ['支出合計', '支出計'],
+  cash:          ['現金'],
+  stocks:        ['株式（投資信託）', '株式(投資信託)'],
+  pensionH:      ['確定拠出年金 夫', '確定拠出年金　夫'],
+  pensionW:      ['確定拠出年金 妻', '確定拠出年金　妻'],
+  totalAssets:   ['資産計', '総資産'],
+};
+
+const START = CONFIG.yearStart;
+const FIRE_SEMI = 2045;
+const FIRE_FULL = 2055;
+
+// Chart インスタンスを管理（再描画時に破棄）
+const charts = {};
+
+// ─── データ取得 ───────────────────────────────────────
+async function fetchTable() {
+  const { sheetId, sheetName } = CONFIG;
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`ネットワークエラー (HTTP ${res.status})`);
+  const text = await res.text();
+  const s = text.indexOf('{'), e = text.lastIndexOf('}') + 1;
+  if (s < 0) throw new Error('シートが非公開か、URLが間違っています。\nスプレッドシートの共有設定を確認してください。');
+  const obj = JSON.parse(text.slice(s, e));
+  if (obj.status === 'error') throw new Error(obj.errors?.[0]?.message || 'シート読み込みエラー');
+  return obj.table;
+}
+
+function cellVal(row, col) {
+  const c = row?.c?.[col];
+  return (c && c.v != null) ? c.v : null;
+}
+
+function normalizeLabel(v) {
+  return String(v).trim().replace(/\s+/g, ' ').replace(/（/g, '(').replace(/）/g, ')');
+}
+
+function findRow(table, variants) {
+  const normalized = variants.map(v => v.replace(/（/g, '(').replace(/）/g, ')').trim());
+  for (const row of table.rows) {
+    const v = cellVal(row, CONFIG.labelCol);
+    if (v == null) continue;
+    if (normalized.includes(normalizeLabel(v))) return row;
+  }
+  return null;
+}
+
+function findYearCol(table) {
+  for (const row of table.rows) {
+    const lbl = cellVal(row, CONFIG.labelCol);
+    if (lbl == null) continue;
+    if (String(lbl).trim() === '西暦') {
+      for (let i = CONFIG.labelCol + 1; i < (row.c?.length ?? 0); i++) {
+        if (cellVal(row, i) == CONFIG.yearStart) return i;
+      }
+    }
+  }
+  // フォールバック: ラベル列の直後のどこかに 2024 があると仮定
+  return CONFIG.labelCol + 1;
+}
+
+function extractValues(row, startCol) {
+  return Array.from({ length: CONFIG.yearCount }, (_, i) => {
+    const v = cellVal(row, startCol + i);
+    if (v == null) return 0;
+    if (typeof v === 'number') return v;
+    const s = String(v).trim();
+    const neg = s.startsWith('(') && s.endsWith(')');
+    const n = parseFloat(s.replace(/[,()\s]/g, '')) || 0;
+    return neg ? -n : n;
+  });
+}
+
+async function loadData() {
+  const table = await fetchTable();
+  const yearCol = findYearCol(table);
+
+  const result = {}, missing = [];
+  for (const [key, variants] of Object.entries(ROW_LABELS)) {
+    const row = findRow(table, variants);
+    if (!row) { missing.push(`「${variants[0]}」`); continue; }
+    result[key] = extractValues(row, yearCol);
+  }
+  if (missing.length) {
+    throw new Error(
+      `以下の行ラベルが「${CONFIG.sheetName}」シートで見つかりません:\n${missing.join('、')}\n\n` +
+      `D列の行名を確認してください。`
+    );
+  }
+  return result;
+}
+
+// ─── UI 状態 ──────────────────────────────────────────
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot' + (state === 'ok' ? '' : state === 'err' ? ' err' : ' loading');
+  document.getElementById('statusText').textContent = text;
+}
+
+function showLoading() {
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  document.getElementById('errorOverlay').classList.add('hidden');
+  setStatus('loading', '読み込み中…');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  document.getElementById('mainContent').style.visibility = 'visible';
+}
+function showError(msg) {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  document.getElementById('errorOverlay').classList.remove('hidden');
+  document.getElementById('errorMsg').textContent = msg;
+  setStatus('err', 'データ取得失敗');
+}
+
+// ─── フォーマット ─────────────────────────────────────
+function fmt(v) {
+  if (v == null) return '–';
+  const m = Math.round(v / 10000);
+  if (Math.abs(m) >= 10000) return (m / 10000).toFixed(2) + '億円';
+  return m.toLocaleString() + '万円';
+}
+function fmtNet(v) {
+  const m = Math.round(v / 10000);
+  return (m >= 0 ? '+' : '') + m.toLocaleString() + '万円';
+}
+function toOku(v) { return v / 1e8; }
+function toMan(v) { return v / 1e4; }
+
+// ─── サマリーカード ───────────────────────────────────
+function buildCards(d) {
+  document.getElementById('card-current').textContent = fmt(d.totalAssets[0]);
+  const fireIdx = FIRE_FULL - START;
+  const fireAsset = d.totalAssets[fireIdx] ?? 0;
+  document.getElementById('card-fire').textContent = fmt(fireAsset);
+  const safe4 = Math.round(fireAsset * 0.04);
+  document.getElementById('card-4pct').textContent = fmt(safe4) + '/年';
+  const fireExp = d.totalExpenses[fireIdx] ?? 0;
+  document.getElementById('card-4pct-sub').textContent = `FIRE後の年間生活費：${fmt(fireExp)}`;
+}
+
+// ─── 資産推移チャート ─────────────────────────────────
+function buildAssetChart(d) {
+  if (charts.asset) { charts.asset.destroy(); }
+  const ctx = document.getElementById('assetChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 380);
+  grad.addColorStop(0, 'rgba(5,150,105,.18)');
+  grad.addColorStop(1, 'rgba(5,150,105,.01)');
+  const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
+
+  const mkLine = (xVal, color, text, pos) => ({
+    type: 'line', xMin: xVal, xMax: xVal,
+    borderColor: color, borderWidth: 2, borderDash: [6, 5],
+    label: { display: true, content: text, position: pos || 'start',
+      backgroundColor: color, color: color === 'rgba(245,158,11,.85)' ? '#1c1917' : 'white',
+      font: { size: 10, weight: '700' }, padding: { x: 6, y: 3 }, borderRadius: 4 }
+  });
+
+  charts.asset = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '総資産', data: d.totalAssets.map(toOku), borderColor: '#059669', backgroundColor: grad, borderWidth: 3, pointRadius: 0, pointHoverRadius: 5, fill: true, tension: 0.35, order: 1 },
+        { label: '現金', data: d.cash.map(toOku), borderColor: '#3b82f6', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 2 },
+        { label: '株式', data: d.stocks.map(toOku), borderColor: '#8b5cf6', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 3 },
+        { label: '確定拠出（夫）', data: d.pensionH.map(toOku), borderColor: '#f97316', borderDash: [5, 3], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 4 },
+        { label: '確定拠出（妻）', data: d.pensionW.map(toOku), borderColor: '#fbbf24', borderDash: [5, 3], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: c => { const yr = parseInt(c[0].label); return `${yr}年（夫${yr - START + 30}歳）`; },
+            label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} 億円`
+          }
+        },
+        annotation: { annotations: {
+          a1: mkLine('2045', 'rgba(245,158,11,.85)', '🔥 夫FIRE', 'start'),
+          a2: mkLine('2055', 'rgba(239,68,68,.88)', '🎉 完全FIRE', 'start'),
+          a3: mkLine('2059', 'rgba(99,102,241,.8)', '年金開始', 'end')
+        }}
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } },
+        y: { ticks: { callback: v => v.toFixed(1) + '億', font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } }
+      }
+    }
+  });
+}
+
+// ─── 収支チャート ─────────────────────────────────────
+function buildFlowChart(d) {
+  if (charts.flow) { charts.flow.destroy(); }
+  const ctx = document.getElementById('flowChart').getContext('2d');
+  const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
+  const net = d.totalIncome.map((v, i) => v - d.totalExpenses[i]);
+
+  charts.flow = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '年間収入', type: 'bar', data: d.totalIncome.map(toMan), backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 2, order: 2 },
+        { label: '年間支出', type: 'bar', data: d.totalExpenses.map(v => -toMan(v)), backgroundColor: 'rgba(239,68,68,.72)', borderRadius: 2, order: 2 },
+        { label: '収支差', type: 'line', data: net.map(toMan), borderColor: '#6366f1', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.35, order: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: c => { const yr = parseInt(c[0].label); return `${yr}年（夫${yr - START + 30}歳）`; },
+            label: c => `${c.dataset.label}: ${Math.abs(c.parsed.y).toLocaleString()} 万円`
+          }
+        },
+        annotation: { annotations: {
+          b1: { type: 'line', xMin: '2045', xMax: '2045', borderColor: 'rgba(245,158,11,.5)', borderWidth: 2, borderDash: [5, 4] },
+          b2: { type: 'line', xMin: '2055', xMax: '2055', borderColor: 'rgba(239,68,68,.5)', borderWidth: 2, borderDash: [5, 4] },
+          bz: { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(0,0,0,.15)', borderWidth: 1 }
+        }}
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { display: false } },
+        y: { ticks: { callback: v => Math.abs(v).toLocaleString() + '万', font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } }
+      }
+    }
+  });
+}
+
+// ─── タイムライン ─────────────────────────────────────
+function buildTimeline() {
+  const milestones = [
+    { year: 2034, label: '住宅ローン\n控除終了', icon: '🏠', fire: false },
+    { year: 2036, label: '長男\n大学進学', icon: '🎓', fire: false },
+    { year: 2039, label: '長女\n大学進学', icon: '🎓', fire: false },
+    { year: 2043, label: '教育費\n終了', icon: '✅', fire: false },
+    { year: 2045, label: '夫\nセミFIRE', icon: '🔥', fire: true },
+    { year: 2053, label: '確定拠出\n受取開始', icon: '💰', fire: false },
+    { year: 2055, label: '完全FIRE\n達成！', icon: '🎉', fire: true },
+    { year: 2057, label: '住宅ローン\n完済', icon: '🏡', fire: false },
+    { year: 2059, label: '公的年金\n開始', icon: '👴', fire: false },
+  ];
+  const track = document.getElementById('timeline');
+  track.innerHTML = '';
+  milestones.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'tl-item' + (m.fire ? ' fire' : '');
+    div.innerHTML = `<div class="tl-bubble"><span class="tl-icon">${m.icon}</span><span class="tl-year">${m.year}</span><span class="tl-label">${m.label.replace('\n', '<br>')}</span></div><div class="tl-dot"></div>`;
+    track.appendChild(div);
+  });
+}
+
+// ─── テーブル ─────────────────────────────────────────
+function buildTable(d) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  const net = d.totalIncome.map((v, i) => v - d.totalExpenses[i]);
+  for (let i = 0; i < CONFIG.yearCount; i++) {
+    const yr = START + i, age = yr - START + 30;
+    const n = net[i];
+    const isSemi = yr === FIRE_SEMI, isFull = yr === FIRE_FULL;
+    const tr = document.createElement('tr');
+    if (isSemi || isFull) tr.className = 'fr';
+    tr.innerHTML = `
+      <td>${yr}年${isFull ? ' 🎉' : isSemi ? ' 🔥' : ''}</td>
+      <td>${age}歳</td>
+      <td class="pos">${fmt(d.totalIncome[i])}</td>
+      <td>${fmt(d.totalExpenses[i])}</td>
+      <td class="${n >= 0 ? 'pos' : 'neg'}">${fmtNet(n)}</td>
+      <td>${fmt(d.cash[i])}</td>
+      <td>${fmt(d.stocks[i])}</td>
+      <td>${fmt(d.pensionH[i])}</td>
+      <td>${fmt(d.pensionW[i])}</td>
+      <td class="tot">${fmt(d.totalAssets[i])}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ─── メイン ───────────────────────────────────────────
+async function init() {
+  showLoading();
+  try {
+    const data = await loadData();
+    hideLoading();
+    buildCards(data);
+    buildAssetChart(data);
+    buildFlowChart(data);
+    buildTimeline();
+    buildTable(data);
+    const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    setStatus('ok', `最終更新：${now}`);
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
