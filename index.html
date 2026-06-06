@@ -250,15 +250,15 @@ const CONFIG = {
   yearCount: 60,
 };
 
-// シート内の行ラベル（複数候補を指定可）
+// シート内の行ラベル（variants: 完全一致候補、keywords: フォールバック部分一致）
 const ROW_LABELS = {
-  totalIncome:   ['収入合計', '収入計'],
-  totalExpenses: ['支出合計', '支出計'],
-  cash:          ['現金'],
-  stocks:        ['株式（投資信託）', '株式(投資信託)'],
-  pensionH:      ['確定拠出年金 夫', '確定拠出年金　夫'],
-  pensionW:      ['確定拠出年金 妻', '確定拠出年金　妻'],
-  totalAssets:   ['資産計', '総資産'],
+  totalIncome:   { variants: ['収入合計', '収入計'] },
+  totalExpenses: { variants: ['支出合計', '支出計'] },
+  cash:          { variants: ['現金'] },
+  stocks:        { variants: ['株式（投資信託）', '株式(投資信託)'], keywords: ['株式', '投資信託'] },
+  pensionH:      { variants: ['確定拠出年金 夫', '確定拠出年金　夫'] },
+  pensionW:      { variants: ['確定拠出年金 妻', '確定拠出年金　妻'] },
+  totalAssets:   { variants: ['資産計', '総資産'] },
 };
 
 const START = CONFIG.yearStart;
@@ -291,12 +291,22 @@ function normalizeLabel(v) {
   return String(v).trim().replace(/\s+/g, ' ').replace(/（/g, '(').replace(/）/g, ')');
 }
 
-function findRow(table, variants) {
+function findRow(table, variants, keywords) {
   const normalized = variants.map(v => v.replace(/（/g, '(').replace(/）/g, ')').trim());
+  // 完全一致（正規化）
   for (const row of table.rows) {
     const v = cellVal(row, CONFIG.labelCol);
     if (v == null) continue;
     if (normalized.includes(normalizeLabel(v))) return row;
+  }
+  // キーワード全て含む部分一致（フォールバック）
+  if (keywords && keywords.length) {
+    for (const row of table.rows) {
+      const v = cellVal(row, CONFIG.labelCol);
+      if (v == null) continue;
+      const lbl = normalizeLabel(v);
+      if (keywords.every(k => lbl.includes(k))) return row;
+    }
   }
   return null;
 }
@@ -331,16 +341,26 @@ async function loadData() {
   const table = await fetchTable();
   const yearCol = findYearCol(table);
 
+  // D列の全ラベルを収集（デバッグ用）
+  const allLabels = [];
+  for (const row of table.rows) {
+    const v = cellVal(row, CONFIG.labelCol);
+    if (v != null && String(v).trim()) allLabels.push(String(v).trim());
+  }
+
   const result = {}, missing = [];
-  for (const [key, variants] of Object.entries(ROW_LABELS)) {
-    const row = findRow(table, variants);
-    if (!row) { missing.push(`「${variants[0]}」`); continue; }
+  for (const [key, def] of Object.entries(ROW_LABELS)) {
+    const row = findRow(table, def.variants, def.keywords);
+    if (!row) { missing.push(`「${def.variants[0]}」`); continue; }
     result[key] = extractValues(row, yearCol);
   }
   if (missing.length) {
+    const labelList = allLabels.length
+      ? `\n\nD列に見つかった全ラベル:\n${allLabels.join(' / ')}`
+      : '';
     throw new Error(
-      `以下の行ラベルが「${CONFIG.sheetName}」シートで見つかりません:\n${missing.join('、')}\n\n` +
-      `D列の行名を確認してください。`
+      `以下の行ラベルが「${CONFIG.sheetName}」シートで見つかりません:\n${missing.join('、')}` +
+      labelList
     );
   }
   return result;
