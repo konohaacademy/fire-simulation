@@ -10,14 +10,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
   <style>
     :root {
-      --primary: #059669;
-      --primary-dark: #047857;
-      --fire: #f59e0b;
-      --fire-bg: #fffbeb;
-      --bg: #f0fdf4;
-      --surface: #ffffff;
-      --text: #111827;
-      --text-muted: #6b7280;
+      --primary: #059669; --primary-dark: #047857;
+      --fire: #f59e0b; --fire-bg: #fffbeb;
+      --bg: #f0fdf4; --surface: #ffffff;
+      --text: #111827; --text-muted: #6b7280;
       --border: #e5e7eb;
       --shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(5,150,105,.07);
       --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
@@ -44,24 +40,52 @@
     .statusbar {
       display: flex; align-items: center; justify-content: flex-end; gap: 10px;
       max-width: 1120px; margin: 0 auto; padding: 8px 16px 0;
-      font-size: 12px; color: var(--text-muted);
+      font-size: 12px; color: var(--text-muted); flex-wrap: wrap;
     }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
     .status-dot.err { background: #ef4444; }
     .status-dot.loading { background: var(--fire); animation: pulse 1s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-    .refresh-btn {
-      background: none; border: 1px solid var(--border); border-radius: 6px;
-      padding: 3px 10px; font-size: 11px; font-family: inherit; cursor: pointer; color: var(--text-muted);
+    .refresh-btn, .edit-btn, .save-btn {
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 12px; font-size: 12px; font-family: inherit; cursor: pointer;
     }
+    .refresh-btn { background: none; color: var(--text-muted); }
     .refresh-btn:hover { background: var(--bg); }
+    .edit-btn { background: none; color: var(--text-muted); }
+    .edit-btn.active { background: #fef3c7; border-color: var(--fire); color: #92400e; }
+    .save-btn { background: var(--primary); color: white; border-color: var(--primary); display: none; }
+    .save-btn:hover { background: var(--primary-dark); }
+    .save-btn.visible { display: inline-block; }
+
+    /* Tabs */
+    .tab-nav {
+      max-width: 1120px; margin: 0 auto; padding: 16px 16px 0;
+      display: flex; gap: 4px;
+    }
+    .tab-btn {
+      padding: 9px 22px; border-radius: 10px 10px 0 0; border: 1px solid var(--border);
+      border-bottom: none; background: rgba(255,255,255,.6); font-family: inherit;
+      font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-muted);
+      transition: background .15s, color .15s;
+    }
+    .tab-btn.active { background: white; color: var(--primary); font-weight: 700; }
+    .tab-btn:hover:not(.active) { background: rgba(255,255,255,.85); color: var(--text); }
 
     /* Layout */
-    .main { max-width: 1120px; margin: -36px auto 0; padding: 0 16px 64px; }
+    .main {
+      max-width: 1120px; margin: 0 auto;
+      padding: 0 16px 64px;
+      background: white; border: 1px solid var(--border);
+      border-radius: 0 var(--radius) var(--radius) var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .tab-panel { padding-top: 28px; }
+    .tab-panel.hidden { display: none; }
 
     /* Loading / Error overlay */
     .overlay {
-      position: fixed; inset: 0; background: rgba(240,253,244,.9);
+      position: fixed; inset: 0; background: rgba(240,253,244,.92);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       z-index: 100; gap: 16px;
     }
@@ -69,16 +93,16 @@
     .spinner { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .overlay p { color: var(--text-muted); font-size: 14px; }
-    .error-box { background: white; border: 1px solid #fca5a5; border-radius: 14px; padding: 28px 32px; max-width: 480px; text-align: center; }
+    .error-box { background: white; border: 1px solid #fca5a5; border-radius: 14px; padding: 28px 32px; max-width: 520px; width: 90%; text-align: center; }
     .error-box h3 { color: #dc2626; font-size: 16px; margin-bottom: 10px; }
-    .error-box p { font-size: 13px; color: var(--text-muted); white-space: pre-wrap; word-break: break-word; line-height: 1.8; }
+    .error-box p { font-size: 12px; color: var(--text-muted); white-space: pre-wrap; word-break: break-all; line-height: 1.8; text-align: left; }
     .error-box ol { text-align: left; margin-top: 12px; font-size: 12px; color: var(--text); padding-left: 18px; line-height: 2; }
     .retry-btn { margin-top: 16px; background: var(--primary); color: white; border: none; border-radius: 8px; padding: 9px 20px; font-family: inherit; font-size: 13px; cursor: pointer; }
     .retry-btn:hover { background: var(--primary-dark); }
 
     /* Cards */
     .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
-    .card { background: var(--surface); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .card { background: var(--bg); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); border: 1px solid var(--border); }
     .card-icon { font-size: 22px; margin-bottom: 10px; }
     .card-label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .06em; margin-bottom: 6px; }
     .card-val { font-size: clamp(18px, 3vw, 26px); font-weight: 900; line-height: 1; margin-bottom: 4px; }
@@ -86,13 +110,19 @@
     .card-val.f { color: var(--fire); }
     .card-sub { font-size: 12px; color: var(--text-muted); }
 
+    /* Fire rate card */
+    .fire-rate-bar { height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    .fire-rate-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--fire)); border-radius: 3px; transition: width .6s ease; }
+
     /* Section */
     .sec { margin-bottom: 28px; }
     .sec-title { font-size: 17px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
     .sec-title::before { content: ''; display: block; width: 4px; height: 20px; background: var(--primary); border-radius: 2px; }
-    .chart-card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .sec-subtitle { font-size: 13px; color: var(--text-muted); margin-left: auto; font-weight: 400; }
+    .chart-card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 14px; }
     .chart-wrap { position: relative; height: 380px; }
-    .chart-wrap.sm { height: 320px; }
+    .chart-wrap.sm { height: 300px; }
+    .chart-wrap.md { height: 340px; }
 
     /* Legend */
     .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
@@ -102,13 +132,16 @@
     .anote span { display: flex; align-items: center; gap: 6px; }
     .adash { width: 20px; height: 0; border-top: 2px dashed; }
 
+    /* No-data notice */
+    .no-data-notice { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+    .no-data-notice p { margin-top: 8px; font-size: 12px; }
+
     /* Timeline */
     .tl-scroll { overflow-x: auto; padding: 8px 0 12px; }
     .tl-track { display: flex; align-items: center; position: relative; min-width: 820px; padding: 12px 20px; }
     .tl-track::before { content: ''; position: absolute; top: 50%; left: 20px; right: 20px; height: 3px; background: linear-gradient(90deg, #6ee7b7, #fbbf24); transform: translateY(-50%); }
-    .tl-item { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; cursor: pointer; }
+    .tl-item { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
     .tl-bubble { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: 11px; text-align: center; max-width: 96px; margin-bottom: 8px; transition: transform .2s, box-shadow .2s; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-    .tl-item:hover .tl-bubble { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
     .tl-item.fire .tl-bubble { border-color: var(--fire); background: var(--fire-bg); }
     .tl-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 3px solid white; box-shadow: 0 0 0 2px var(--primary); z-index: 1; flex-shrink: 0; }
     .tl-item.fire .tl-dot { width: 20px; height: 20px; background: var(--fire); box-shadow: 0 0 0 3px var(--fire), 0 0 14px rgba(245,158,11,.4); }
@@ -118,7 +151,7 @@
     .tl-icon { font-size: 15px; display: block; margin-bottom: 2px; }
 
     /* Table */
-    .tbl-wrap { overflow: auto; max-height: 420px; border-radius: 10px; border: 1px solid var(--border); }
+    .tbl-wrap { overflow: auto; max-height: 480px; border-radius: 10px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     thead th { background: #064e3b; color: white; padding: 10px 14px; text-align: right; font-size: 11px; font-weight: 700; letter-spacing: .04em; position: sticky; top: 0; white-space: nowrap; z-index: 2; }
     thead th:first-child { text-align: left; }
@@ -132,11 +165,30 @@
     .neg { color: #ef4444 !important; }
     .tot { color: var(--primary) !important; font-weight: 700 !important; }
 
+    /* Edit mode */
+    .edit-input {
+      width: 90px; padding: 2px 6px; border: 1px solid var(--fire); border-radius: 4px;
+      font-size: 12px; font-family: inherit; text-align: right; background: #fffbeb;
+    }
+    .edit-input:focus { outline: 2px solid var(--fire); }
+    .edit-mode-banner {
+      display: none; background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 8px; padding: 8px 16px; margin-bottom: 12px;
+      font-size: 13px; color: #92400e;
+    }
+    .edit-mode-banner.visible { display: block; }
+
+    /* 2-col chart grid */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
     @media (max-width: 700px) {
       .cards { grid-template-columns: repeat(2, 1fr); }
       .chart-wrap { height: 260px; }
       .chart-wrap.sm { height: 220px; }
+      .chart-wrap.md { height: 260px; }
+      .chart-grid { grid-template-columns: 1fr; }
       .header { padding: 36px 16px 56px; }
+      .tab-btn { padding: 7px 14px; font-size: 13px; }
     }
   </style>
 </head>
@@ -175,83 +227,164 @@
   <div class="status-dot" id="statusDot"></div>
   <span id="statusText">読み込み中…</span>
   <button class="refresh-btn" onclick="init()">↺ 再取得</button>
+  <a class="refresh-btn" href="https://docs.google.com/spreadsheets/d/1UtTal570o5wHbQXaZisO6IRQed6mt9TL8j8L45yp1eU/edit" target="_blank" style="text-decoration:none">📊 シートを開く</a>
+  <button class="edit-btn" id="editBtn" onclick="toggleEditMode()">🔒 編集モード</button>
+  <button class="save-btn" id="saveBtn" onclick="saveChanges()">💾 スプレッドシートに保存</button>
 </div>
 
-<div class="main" id="mainContent" style="visibility:hidden">
-
-  <div class="cards">
-    <div class="card"><div class="card-icon">💼</div><div class="card-label">現在の総資産（2024年）</div><div class="card-val g" id="card-current">–</div><div class="card-sub">夫30歳・妻30歳</div></div>
-    <div class="card"><div class="card-icon">🔥</div><div class="card-label">完全FIRE達成年</div><div class="card-val f">2055年</div><div class="card-sub">夫61歳・妻61歳（あと31年）</div></div>
-    <div class="card"><div class="card-icon">💰</div><div class="card-label">FIRE時の総資産</div><div class="card-val g" id="card-fire">–</div><div class="card-sub">株式・現金・確定拠出年金</div></div>
-    <div class="card"><div class="card-icon">📊</div><div class="card-label">4%ルール 年間取崩可能額</div><div class="card-val" id="card-4pct">–</div><div class="card-sub" id="card-4pct-sub">–</div></div>
-  </div>
-
-  <div class="sec">
-    <div class="sec-title">資産推移グラフ</div>
-    <div class="chart-card">
-      <div class="chart-wrap"><canvas id="assetChart"></canvas></div>
-      <div class="anote">
-        <span><span class="adash" style="border-color:var(--fire)"></span><span style="color:var(--fire)">夫セミFIRE（2045年）</span></span>
-        <span><span class="adash" style="border-color:#ef4444"></span><span style="color:#ef4444">完全FIRE（2055年）</span></span>
-        <span><span class="adash" style="border-color:#6366f1"></span><span style="color:#6366f1">公的年金開始（2059年）</span></span>
-      </div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>総資産</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6"></div>現金</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:#8b5cf6"></div>株式（投資信託）</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:#f97316"></div>確定拠出年金（夫）</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:#fbbf24"></div>確定拠出年金（妻）</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="sec">
-    <div class="sec-title">収支バランス</div>
-    <div class="chart-card">
-      <div class="chart-wrap sm"><canvas id="flowChart"></canvas></div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-swatch" style="background:rgba(16,185,129,.75)"></div>年間収入</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,.75)"></div>年間支出（マイナス表示）</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:#6366f1"></div>収支差（折れ線）</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="sec">
-    <div class="sec-title">ライフイベント タイムライン</div>
-    <div class="chart-card">
-      <div class="tl-scroll"><div class="tl-track" id="timeline"></div></div>
-    </div>
-  </div>
-
-  <div class="sec">
-    <div class="sec-title">年次データ（60年間）</div>
-    <div class="chart-card">
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>年度</th><th>夫</th><th>年間収入</th><th>年間支出</th><th>収支差</th>
-            <th>現金</th><th>株式</th><th>確定拠出(夫)</th><th>確定拠出(妻)</th><th>総資産</th>
-          </tr></thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+<!-- Tab navigation -->
+<div class="tab-nav" id="mainContent" style="visibility:hidden">
+  <button class="tab-btn active" onclick="switchTab('overview')" id="tab-overview-btn">📊 概要</button>
+  <button class="tab-btn" onclick="switchTab('detail')" id="tab-detail-btn">📋 収入・支出詳細</button>
+  <button class="tab-btn" onclick="switchTab('fire')" id="tab-fire-btn">🔥 FIRE進捗</button>
 </div>
+
+<div class="main" id="mainContainer" style="visibility:hidden; border-top: none; border-radius: 0 var(--radius) var(--radius) var(--radius);">
+
+  <!-- ── 概要タブ ── -->
+  <div class="tab-panel" id="panel-overview">
+
+    <div class="cards">
+      <div class="card"><div class="card-icon">💼</div><div class="card-label">現在の総資産（2024年）</div><div class="card-val g" id="card-current">–</div><div class="card-sub">夫30歳・妻30歳</div></div>
+      <div class="card"><div class="card-icon">🔥</div><div class="card-label">完全FIRE達成年</div><div class="card-val f">2055年</div><div class="card-sub">夫61歳・妻61歳</div></div>
+      <div class="card"><div class="card-icon">💰</div><div class="card-label">FIRE時の総資産</div><div class="card-val g" id="card-fire">–</div><div class="card-sub">株式・現金・確定拠出年金</div></div>
+      <div class="card">
+        <div class="card-icon">📈</div>
+        <div class="card-label">現在のFIRE達成率（4%ルール）</div>
+        <div class="card-val f" id="card-fire-rate">–</div>
+        <div class="card-sub" id="card-fire-rate-sub">–</div>
+        <div class="fire-rate-bar"><div class="fire-rate-fill" id="card-fire-rate-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">資産推移グラフ <span class="sec-subtitle">シナリオ帯：投資リターン ±1%/年</span></div>
+      <div class="chart-card">
+        <div class="chart-wrap"><canvas id="assetChart"></canvas></div>
+        <div class="anote">
+          <span><span class="adash" style="border-color:var(--fire)"></span><span style="color:var(--fire)">夫セミFIRE（2045年）</span></span>
+          <span><span class="adash" style="border-color:#ef4444"></span><span style="color:#ef4444">完全FIRE（2055年）</span></span>
+          <span><span class="adash" style="border-color:#6366f1"></span><span style="color:#6366f1">公的年金開始（2059年）</span></span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>総資産（標準）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(16,185,129,.25);border:1px dashed #059669"></div>楽観シナリオ（+1%）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,.15);border:1px dashed #ef4444"></div>悲観シナリオ（−1%）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6"></div>現金</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#8b5cf6"></div>株式（投資信託）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">収支バランス</div>
+      <div class="chart-card">
+        <div class="chart-wrap sm"><canvas id="flowChart"></canvas></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(16,185,129,.75)"></div>年間収入</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,.75)"></div>年間支出（マイナス表示）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#6366f1"></div>収支差（折れ線）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">ライフイベント タイムライン</div>
+      <div class="chart-card">
+        <div class="tl-scroll"><div class="tl-track" id="timeline"></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">年次データ（60年間）</div>
+      <div class="edit-mode-banner" id="editBanner">
+        ✏️ 編集モード中 — 収入・支出の数値を直接変更できます。変更後は「スプレッドシートに保存」を押してください。
+      </div>
+      <div class="chart-card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>年度</th><th>夫年齢</th>
+              <th>年間収入</th><th>年間支出</th><th>収支差</th>
+              <th>現金</th><th>株式</th><th>確定拠出(夫)</th><th>確定拠出(妻)</th>
+              <th>貯蓄率</th><th>総資産</th>
+            </tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- /panel-overview -->
+
+  <!-- ── 収入・支出詳細タブ ── -->
+  <div class="tab-panel hidden" id="panel-detail">
+    <div class="sec">
+      <div class="sec-title">収入の内訳</div>
+      <div class="chart-card" id="incomeDetailCard">
+        <div class="chart-wrap md"><canvas id="incomeDetailChart"></canvas></div>
+        <div class="legend" id="incomeDetailLegend"></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">支出の内訳</div>
+      <div class="chart-card" id="expenseDetailCard">
+        <div class="chart-wrap md"><canvas id="expenseDetailChart"></canvas></div>
+        <div class="legend" id="expenseDetailLegend"></div>
+      </div>
+    </div>
+  </div><!-- /panel-detail -->
+
+  <!-- ── FIRE進捗タブ ── -->
+  <div class="tab-panel hidden" id="panel-fire">
+    <div class="sec">
+      <div class="sec-title">FIRE達成率の推移（4%ルール）</div>
+      <div class="chart-card">
+        <div class="chart-wrap md"><canvas id="fireRateChart"></canvas></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>FIRE達成率（総資産 ÷ 年間支出×25）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#6366f1"></div>貯蓄率（収支差 ÷ 収入）</div>
+        </div>
+        <div class="anote" style="margin-top:12px">
+          <span>FIRE達成率 100% = 4%ルール完全達成（資産が生活費25年分）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">シナリオ比較 <span class="sec-subtitle">投資リターン 楽観＋1% / 標準 / 悲観－1%</span></div>
+      <div class="chart-card">
+        <div class="chart-wrap"><canvas id="scenarioChart"></canvas></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#10b981"></div>楽観（+1%/年）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>標準（シート値）</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div>悲観（−1%/年）</div>
+        </div>
+        <div class="anote" style="margin-top:12px">
+          <span>※ 2024年時点の株式・確定拠出年金残高を基準に複利で調整した試算値</span>
+        </div>
+      </div>
+    </div>
+  </div><!-- /panel-fire -->
+
+</div><!-- /main -->
 
 <script>
 // ─── 設定 ─────────────────────────────────────────────
 const CONFIG = {
-  sheetId:   '1UtTal570o5wHbQXaZisO6IRQed6mt9TL8j8L45yp1eU',
-  sheetName: '計画',
-  labelCol:  3,    // 行ラベルが入っている列のインデックス（0始まり）
-  yearStart: 2024,
-  yearCount: 60,
+  sheetId:    '1UtTal570o5wHbQXaZisO6IRQed6mt9TL8j8L45yp1eU',
+  sheetName:  '計画',
+  labelCol:   3,
+  yearStart:  2024,
+  yearCount:  60,
+  gasEndpoint: 'https://script.google.com/macros/s/AKfycbxSnuAlz2VUibvMH2hY1-fPz9DlIWQSZyooJD5x2DhqHhpFa_HNCOldSCI1H7u0Aiqc/exec',
 };
 
-// シート内の行ラベル（variants: 完全一致候補、keywords: フォールバック部分一致）
-const ROW_LABELS = {
+const START     = CONFIG.yearStart;
+const FIRE_SEMI = 2045;
+const FIRE_FULL = 2055;
+
+// 必須ラベル（見つからないとエラー）
+const REQUIRED_LABELS = {
   totalIncome:   { variants: ['収入合計', '収入計'] },
   totalExpenses: { variants: ['支出合計', '支出計'] },
   cash:          { variants: ['現金'] },
@@ -261,17 +394,26 @@ const ROW_LABELS = {
   totalAssets:   { variants: ['資産計', '総資産'] },
 };
 
-const START = CONFIG.yearStart;
-const FIRE_SEMI = 2045;
-const FIRE_FULL = 2055;
+// オプションラベル（見つからなくても無視）
+const OPTIONAL_LABELS = {
+  salaryH:      { variants: ['夫給与', '夫の給与', '夫 給与', '夫　給与', '給与(夫)', '給与（夫）'], keywords: ['夫', '給与'] },
+  salaryW:      { variants: ['妻給与', '妻の給与', '妻 給与', '妻　給与', '給与(妻)', '給与（妻）'], keywords: ['妻', '給与'] },
+  sideIncome:   { variants: ['副業収入', '副業', 'サイドビジネス', '副収入'], keywords: ['副業'] },
+  investReturn: { variants: ['投資リターン', '運用益', '配当収入', '投資収益', '運用収益'], keywords: ['運用'] },
+  housing:      { variants: ['住宅ローン', '住宅費', '住居費', 'ローン返済', '家賃'], keywords: ['住宅'] },
+  food:         { variants: ['食費', '食費・日用品', '食費日用品', '食費・雑費'], keywords: ['食費'] },
+  education:    { variants: ['教育費', '教育費合計', '子ども教育費', '子供教育費'], keywords: ['教育'] },
+  insurance:    { variants: ['保険料', '保険', '生命保険', '各種保険'], keywords: ['保険'] },
+};
 
-// Chart インスタンスを管理（再描画時に破棄）
 const charts = {};
+let currentData = null;    // loadData の結果
+let editMode = false;
+const pendingChanges = {}; // {key: [{year, value}]}
 
 // ─── データ取得 ───────────────────────────────────────
 async function fetchTable() {
-  const { sheetId, sheetName } = CONFIG;
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.sheetName)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`ネットワークエラー (HTTP ${res.status})`);
   const text = await res.text();
@@ -293,13 +435,11 @@ function normalizeLabel(v) {
 
 function findRow(table, variants, keywords) {
   const normalized = variants.map(v => v.replace(/（/g, '(').replace(/）/g, ')').trim());
-  // 完全一致（正規化）
   for (const row of table.rows) {
     const v = cellVal(row, CONFIG.labelCol);
     if (v == null) continue;
     if (normalized.includes(normalizeLabel(v))) return row;
   }
-  // キーワード全て含む部分一致（フォールバック）
   if (keywords && keywords.length) {
     for (const row of table.rows) {
       const v = cellVal(row, CONFIG.labelCol);
@@ -321,7 +461,6 @@ function findYearCol(table) {
       }
     }
   }
-  // フォールバック: ラベル列の直後のどこかに 2024 があると仮定
   return CONFIG.labelCol + 1;
 }
 
@@ -337,42 +476,72 @@ function extractValues(row, startCol) {
   });
 }
 
+// 実際にマッチしたラベルテキストを返す
+function findMatchedLabel(table, variants, keywords) {
+  const normalized = variants.map(v => v.replace(/（/g, '(').replace(/）/g, ')').trim());
+  for (const row of table.rows) {
+    const v = cellVal(row, CONFIG.labelCol);
+    if (v == null) continue;
+    if (normalized.includes(normalizeLabel(v))) return String(v).trim();
+  }
+  if (keywords && keywords.length) {
+    for (const row of table.rows) {
+      const v = cellVal(row, CONFIG.labelCol);
+      if (v == null) continue;
+      if (keywords.every(k => normalizeLabel(v).includes(k))) return String(v).trim();
+    }
+  }
+  return null;
+}
+
 async function loadData() {
   const table = await fetchTable();
   const yearCol = findYearCol(table);
 
-  // D列の全ラベルを収集（デバッグ用）
+  // D列ラベル収集（エラー時デバッグ用）
   const allLabels = [];
   for (const row of table.rows) {
     const v = cellVal(row, CONFIG.labelCol);
     if (v != null && String(v).trim()) allLabels.push(String(v).trim());
   }
 
-  const result = {}, missing = [];
-  for (const [key, def] of Object.entries(ROW_LABELS)) {
+  const result = { _labels: {}, _yearCol: yearCol };
+  const missing = [];
+
+  // 必須
+  for (const [key, def] of Object.entries(REQUIRED_LABELS)) {
     const row = findRow(table, def.variants, def.keywords);
     if (!row) { missing.push(`「${def.variants[0]}」`); continue; }
     result[key] = extractValues(row, yearCol);
+    result._labels[key] = findMatchedLabel(table, def.variants, def.keywords);
   }
   if (missing.length) {
-    const labelList = allLabels.length
-      ? `\n\nD列に見つかった全ラベル:\n${allLabels.join(' / ')}`
-      : '';
     throw new Error(
-      `以下の行ラベルが「${CONFIG.sheetName}」シートで見つかりません:\n${missing.join('、')}` +
-      labelList
+      `以下の行ラベルが「${CONFIG.sheetName}」シートで見つかりません:\n${missing.join('、')}\n\n` +
+      `D列に見つかったラベル:\n${allLabels.join(' / ')}`
     );
   }
+
+  // オプション（なくても続行）
+  for (const [key, def] of Object.entries(OPTIONAL_LABELS)) {
+    const row = findRow(table, def.variants, def.keywords);
+    if (row) {
+      result[key] = extractValues(row, yearCol);
+      result._labels[key] = findMatchedLabel(table, def.variants, def.keywords);
+    } else {
+      result[key] = null;
+    }
+  }
+
   return result;
 }
 
 // ─── UI 状態 ──────────────────────────────────────────
 function setStatus(state, text) {
-  const dot = document.getElementById('statusDot');
-  dot.className = 'status-dot' + (state === 'ok' ? '' : state === 'err' ? ' err' : ' loading');
+  document.getElementById('statusDot').className =
+    'status-dot' + (state === 'ok' ? '' : state === 'err' ? ' err' : ' loading');
   document.getElementById('statusText').textContent = text;
 }
-
 function showLoading() {
   document.getElementById('loadingOverlay').classList.remove('hidden');
   document.getElementById('errorOverlay').classList.add('hidden');
@@ -381,12 +550,21 @@ function showLoading() {
 function hideLoading() {
   document.getElementById('loadingOverlay').classList.add('hidden');
   document.getElementById('mainContent').style.visibility = 'visible';
+  document.getElementById('mainContainer').style.visibility = 'visible';
 }
 function showError(msg) {
   document.getElementById('loadingOverlay').classList.add('hidden');
   document.getElementById('errorOverlay').classList.remove('hidden');
   document.getElementById('errorMsg').textContent = msg;
   setStatus('err', 'データ取得失敗');
+}
+
+// ─── タブ切り替え ─────────────────────────────────────
+function switchTab(name) {
+  ['overview', 'detail', 'fire'].forEach(t => {
+    document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== name);
+    document.getElementById(`tab-${t}-btn`).classList.toggle('active', t === name);
+  });
 }
 
 // ─── フォーマット ─────────────────────────────────────
@@ -406,42 +584,61 @@ function toMan(v) { return v / 1e4; }
 // ─── サマリーカード ───────────────────────────────────
 function buildCards(d) {
   document.getElementById('card-current').textContent = fmt(d.totalAssets[0]);
-  const fireIdx = FIRE_FULL - START;
-  const fireAsset = d.totalAssets[fireIdx] ?? 0;
-  document.getElementById('card-fire').textContent = fmt(fireAsset);
-  const safe4 = Math.round(fireAsset * 0.04);
-  document.getElementById('card-4pct').textContent = fmt(safe4) + '/年';
-  const fireExp = d.totalExpenses[fireIdx] ?? 0;
-  document.getElementById('card-4pct-sub').textContent = `FIRE後の年間生活費：${fmt(fireExp)}`;
+  const fi = FIRE_FULL - START;
+  document.getElementById('card-fire').textContent = fmt(d.totalAssets[fi]);
+
+  // FIRE達成率（現在）
+  const fireNeeded = d.totalExpenses[0] * 25;
+  const fireRate = fireNeeded > 0 ? Math.min(Math.round(d.totalAssets[0] / fireNeeded * 100), 999) : 0;
+  document.getElementById('card-fire-rate').textContent = fireRate + '%';
+  document.getElementById('card-fire-rate-sub').textContent =
+    `必要額：${fmt(fireNeeded)}（支出×25）`;
+  document.getElementById('card-fire-rate-bar').style.width = Math.min(fireRate, 100) + '%';
 }
 
-// ─── 資産推移チャート ─────────────────────────────────
+// ─── FIRE マイルストーン注釈 ─────────────────────────
+const FIRE_ANNOTATIONS = (ids) => ({
+  [ids[0]]: mkAnnLine('2045', 'rgba(245,158,11,.85)', '🔥 夫FIRE', 'start'),
+  [ids[1]]: mkAnnLine('2055', 'rgba(239,68,68,.88)', '🎉 完全FIRE', 'start'),
+  [ids[2]]: mkAnnLine('2059', 'rgba(99,102,241,.8)', '年金開始', 'end'),
+});
+function mkAnnLine(xVal, color, text, pos) {
+  return {
+    type: 'line', xMin: xVal, xMax: xVal,
+    borderColor: color, borderWidth: 2, borderDash: [6, 5],
+    label: {
+      display: true, content: text, position: pos || 'start',
+      backgroundColor: color,
+      color: xVal === '2045' ? '#1c1917' : 'white',
+      font: { size: 10, weight: '700' }, padding: { x: 6, y: 3 }, borderRadius: 4
+    }
+  };
+}
+
+// ─── 資産推移チャート（シナリオ帯付き）────────────────
 function buildAssetChart(d) {
-  if (charts.asset) { charts.asset.destroy(); }
+  if (charts.asset) charts.asset.destroy();
   const ctx = document.getElementById('assetChart').getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, 380);
   grad.addColorStop(0, 'rgba(5,150,105,.18)');
   grad.addColorStop(1, 'rgba(5,150,105,.01)');
   const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
 
-  const mkLine = (xVal, color, text, pos) => ({
-    type: 'line', xMin: xVal, xMax: xVal,
-    borderColor: color, borderWidth: 2, borderDash: [6, 5],
-    label: { display: true, content: text, position: pos || 'start',
-      backgroundColor: color, color: color === 'rgba(245,158,11,.85)' ? '#1c1917' : 'white',
-      font: { size: 10, weight: '700' }, padding: { x: 6, y: 3 }, borderRadius: 4 }
-  });
+  // シナリオ調整（株式+確定拠出年金の初期値に複利差分を加算）
+  const equityBase = (d.stocks[0] || 0) + (d.pensionH[0] || 0) + (d.pensionW[0] || 0);
+  const optAssets  = d.totalAssets.map((v, i) => v + equityBase * (Math.pow(1.01, i) - 1));
+  const pessAssets = d.totalAssets.map((v, i) => v + equityBase * (Math.pow(0.99, i) - 1));
 
   charts.asset = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [
-        { label: '総資産', data: d.totalAssets.map(toOku), borderColor: '#059669', backgroundColor: grad, borderWidth: 3, pointRadius: 0, pointHoverRadius: 5, fill: true, tension: 0.35, order: 1 },
+        { label: '楽観（+1%）', data: optAssets.map(toOku), borderColor: 'rgba(16,185,129,.4)', backgroundColor: 'rgba(16,185,129,.08)', borderWidth: 1, borderDash: [4, 3], pointRadius: 0, fill: true, tension: 0.35, order: 4 },
+        { label: '悲観（−1%）', data: pessAssets.map(toOku), borderColor: 'rgba(239,68,68,.35)', backgroundColor: 'rgba(239,68,68,.05)', borderWidth: 1, borderDash: [4, 3], pointRadius: 0, fill: true, tension: 0.35, order: 4 },
+        { label: '総資産', data: d.totalAssets.map(toOku), borderColor: '#059669', backgroundColor: grad, borderWidth: 3, pointRadius: 0, pointHoverRadius: 5, fill: false, tension: 0.35, order: 1 },
         { label: '現金', data: d.cash.map(toOku), borderColor: '#3b82f6', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 2 },
         { label: '株式', data: d.stocks.map(toOku), borderColor: '#8b5cf6', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 3 },
-        { label: '確定拠出（夫）', data: d.pensionH.map(toOku), borderColor: '#f97316', borderDash: [5, 3], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 4 },
-        { label: '確定拠出（妻）', data: d.pensionW.map(toOku), borderColor: '#fbbf24', borderDash: [5, 3], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, order: 5 }
       ]
     },
     options: {
@@ -455,11 +652,7 @@ function buildAssetChart(d) {
             label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} 億円`
           }
         },
-        annotation: { annotations: {
-          a1: mkLine('2045', 'rgba(245,158,11,.85)', '🔥 夫FIRE', 'start'),
-          a2: mkLine('2055', 'rgba(239,68,68,.88)', '🎉 完全FIRE', 'start'),
-          a3: mkLine('2059', 'rgba(99,102,241,.8)', '年金開始', 'end')
-        }}
+        annotation: { annotations: FIRE_ANNOTATIONS(['a1','a2','a3']) }
       },
       scales: {
         x: { ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } },
@@ -471,7 +664,7 @@ function buildAssetChart(d) {
 
 // ─── 収支チャート ─────────────────────────────────────
 function buildFlowChart(d) {
-  if (charts.flow) { charts.flow.destroy(); }
+  if (charts.flow) charts.flow.destroy();
   const ctx = document.getElementById('flowChart').getContext('2d');
   const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
   const net = d.totalIncome.map((v, i) => v - d.totalExpenses[i]);
@@ -481,8 +674,8 @@ function buildFlowChart(d) {
     data: {
       labels,
       datasets: [
-        { label: '年間収入', type: 'bar', data: d.totalIncome.map(toMan), backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 2, order: 2 },
-        { label: '年間支出', type: 'bar', data: d.totalExpenses.map(v => -toMan(v)), backgroundColor: 'rgba(239,68,68,.72)', borderRadius: 2, order: 2 },
+        { label: '年間収入', data: d.totalIncome.map(toMan), backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 2, order: 2 },
+        { label: '年間支出', data: d.totalExpenses.map(v => -toMan(v)), backgroundColor: 'rgba(239,68,68,.72)', borderRadius: 2, order: 2 },
         { label: '収支差', type: 'line', data: net.map(toMan), borderColor: '#6366f1', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.35, order: 1 }
       ]
     },
@@ -511,18 +704,231 @@ function buildFlowChart(d) {
   });
 }
 
+// ─── 収入内訳チャート ─────────────────────────────────
+function buildIncomeDetailChart(d) {
+  if (charts.incomeDetail) charts.incomeDetail.destroy();
+
+  const keys = [
+    { key: 'salaryH',      label: '夫の給与',        color: '#059669' },
+    { key: 'salaryW',      label: '妻の給与',         color: '#10b981' },
+    { key: 'sideIncome',   label: '副業収入',          color: '#f59e0b' },
+    { key: 'investReturn', label: '投資・運用益',      color: '#8b5cf6' },
+  ];
+  const available = keys.filter(k => d[k.key] != null);
+
+  const card = document.getElementById('incomeDetailCard');
+  if (available.length === 0) {
+    card.innerHTML = `<div class="no-data-notice">📊 データなし<p>収入内訳の行ラベルがスプレッドシートで見つかりませんでした。<br>シートに「夫給与」「妻給与」などの行を追加するか、CLAUDE.mdのROW_LABELSを調整してください。</p></div>`;
+    return;
+  }
+
+  const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
+  const legend = document.getElementById('incomeDetailLegend');
+  legend.innerHTML = '';
+
+  const datasets = available.map(k => {
+    legend.innerHTML += `<div class="legend-item"><div class="legend-swatch" style="background:${k.color}"></div>${k.label}</div>`;
+    return { label: k.label, data: d[k.key].map(toMan), backgroundColor: k.color, borderRadius: 2, stack: 'income' };
+  });
+
+  // 合計との差分を「その他」として追加
+  const sumOthers = d.totalIncome.map((tot, i) => {
+    const known = available.reduce((s, k) => s + (d[k.key][i] || 0), 0);
+    return Math.max(0, toMan(tot - known));
+  });
+  if (sumOthers.some(v => v > 10)) {
+    datasets.push({ label: 'その他', data: sumOthers, backgroundColor: '#d1d5db', borderRadius: 2, stack: 'income' });
+    legend.innerHTML += `<div class="legend-item"><div class="legend-swatch" style="background:#d1d5db"></div>その他</div>`;
+  }
+
+  const ctx = document.getElementById('incomeDetailChart').getContext('2d');
+  charts.incomeDetail = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: c => { const yr = parseInt(c[0].label); return `${yr}年（夫${yr - START + 30}歳）`; },
+          label: c => `${c.dataset.label}: ${c.parsed.y.toLocaleString()} 万円`
+        }}
+      },
+      scales: {
+        x: { stacked: true, ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { display: false } },
+        y: { stacked: true, ticks: { callback: v => v.toLocaleString() + '万', font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } }
+      }
+    }
+  });
+}
+
+// ─── 支出内訳チャート ─────────────────────────────────
+function buildExpenseDetailChart(d) {
+  if (charts.expenseDetail) charts.expenseDetail.destroy();
+
+  const keys = [
+    { key: 'housing',   label: '住宅ローン',  color: '#3b82f6' },
+    { key: 'food',      label: '食費・日用品', color: '#f97316' },
+    { key: 'education', label: '教育費',       color: '#8b5cf6' },
+    { key: 'insurance', label: '保険',         color: '#06b6d4' },
+  ];
+  const available = keys.filter(k => d[k.key] != null);
+
+  const card = document.getElementById('expenseDetailCard');
+  if (available.length === 0) {
+    card.innerHTML = `<div class="no-data-notice">📊 データなし<p>支出内訳の行ラベルがスプレッドシートで見つかりませんでした。<br>シートに「住宅ローン」「食費」「教育費」などの行を追加するか、CLAUDE.mdのROW_LABELSを調整してください。</p></div>`;
+    return;
+  }
+
+  const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
+  const legend = document.getElementById('expenseDetailLegend');
+  legend.innerHTML = '';
+
+  const datasets = available.map(k => {
+    legend.innerHTML += `<div class="legend-item"><div class="legend-swatch" style="background:${k.color}"></div>${k.label}</div>`;
+    return { label: k.label, data: d[k.key].map(toMan), backgroundColor: k.color, borderRadius: 2, stack: 'exp' };
+  });
+
+  const sumOthers = d.totalExpenses.map((tot, i) => {
+    const known = available.reduce((s, k) => s + (d[k.key][i] || 0), 0);
+    return Math.max(0, toMan(tot - known));
+  });
+  if (sumOthers.some(v => v > 10)) {
+    datasets.push({ label: 'その他', data: sumOthers, backgroundColor: '#d1d5db', borderRadius: 2, stack: 'exp' });
+    legend.innerHTML += `<div class="legend-item"><div class="legend-swatch" style="background:#d1d5db"></div>その他</div>`;
+  }
+
+  const ctx = document.getElementById('expenseDetailChart').getContext('2d');
+  charts.expenseDetail = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: c => { const yr = parseInt(c[0].label); return `${yr}年（夫${yr - START + 30}歳）`; },
+          label: c => `${c.dataset.label}: ${c.parsed.y.toLocaleString()} 万円`
+        }}
+      },
+      scales: {
+        x: { stacked: true, ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { display: false } },
+        y: { stacked: true, ticks: { callback: v => v.toLocaleString() + '万', font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } }
+      }
+    }
+  });
+}
+
+// ─── FIRE達成率チャート ───────────────────────────────
+function buildFireRateChart(d) {
+  if (charts.fireRate) charts.fireRate.destroy();
+  const ctx = document.getElementById('fireRateChart').getContext('2d');
+  const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
+
+  const fireRate = d.totalAssets.map((v, i) => {
+    const needed = d.totalExpenses[i] * 25;
+    return needed > 0 ? Math.round(v / needed * 100) : 0;
+  });
+  const savingRate = d.totalIncome.map((v, i) => {
+    const net = v - d.totalExpenses[i];
+    if (v <= 0) return -100;
+    return Math.max(-100, Math.round(net / v * 100));
+  });
+
+  charts.fireRate = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'FIRE達成率 (%)', data: fireRate, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.1)', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, fill: true, tension: 0.35, yAxisID: 'yFire' },
+        { label: '貯蓄率 (%)', data: savingRate, borderColor: '#6366f1', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0.35, yAxisID: 'ySave' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: c => { const yr = parseInt(c[0].label); return `${yr}年（夫${yr - START + 30}歳）`; },
+          label: c => `${c.dataset.label}: ${c.parsed.y}%`
+        }},
+        annotation: { annotations: {
+          target: { type: 'line', yScaleID: 'yFire', yMin: 100, yMax: 100, borderColor: '#f59e0b', borderWidth: 2, borderDash: [6, 4], label: { display: true, content: 'FIRE達成 100%', position: 'end', backgroundColor: '#f59e0b', color: '#1c1917', font: { size: 10, weight: '700' }, padding: { x: 6, y: 3 }, borderRadius: 4 } },
+          ...FIRE_ANNOTATIONS(['f1','f2','f3'])
+        }}
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } },
+        yFire: { position: 'left', ticks: { callback: v => v + '%', font: { size: 11 }, color: '#059669' }, grid: { color: 'rgba(0,0,0,.04)' }, title: { display: true, text: 'FIRE達成率', color: '#059669', font: { size: 11 } } },
+        ySave: { position: 'right', min: -100, ticks: { callback: v => v + '%', font: { size: 11 }, color: '#6366f1' }, grid: { display: false }, title: { display: true, text: '貯蓄率', color: '#6366f1', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ─── シナリオ比較チャート ─────────────────────────────
+function buildScenarioChart(d) {
+  if (charts.scenario) charts.scenario.destroy();
+  const ctx = document.getElementById('scenarioChart').getContext('2d');
+  const labels = Array.from({ length: CONFIG.yearCount }, (_, i) => String(START + i));
+
+  const equityBase = (d.stocks[0] || 0) + (d.pensionH[0] || 0) + (d.pensionW[0] || 0);
+  const opt  = d.totalAssets.map((v, i) => toOku(v + equityBase * (Math.pow(1.01, i) - 1)));
+  const base = d.totalAssets.map(toOku);
+  const pess = d.totalAssets.map((v, i) => toOku(Math.max(0, v + equityBase * (Math.pow(0.99, i) - 1))));
+
+  const gradOpt  = ctx.createLinearGradient(0, 0, 0, 380);
+  gradOpt.addColorStop(0, 'rgba(16,185,129,.15)');
+  gradOpt.addColorStop(1, 'rgba(16,185,129,.01)');
+
+  const gradPess = ctx.createLinearGradient(0, 0, 0, 380);
+  gradPess.addColorStop(0, 'rgba(239,68,68,.12)');
+  gradPess.addColorStop(1, 'rgba(239,68,68,.01)');
+
+  charts.scenario = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '楽観（+1%/年）', data: opt,  borderColor: '#10b981', backgroundColor: gradOpt,  borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: true,  tension: 0.35 },
+        { label: '標準',           data: base, borderColor: '#059669', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, fill: false, tension: 0.35 },
+        { label: '悲観（−1%/年）', data: pess, borderColor: '#ef4444', backgroundColor: gradPess, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: true,  tension: 0.35 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: c => { const yr = parseInt(c[0].label); return `${yr}年（夫${yr - START + 30}歳）`; },
+          label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} 億円`
+        }},
+        annotation: { annotations: FIRE_ANNOTATIONS(['s1','s2','s3']) }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } },
+        y: { ticks: { callback: v => v.toFixed(1) + '億', font: { size: 11 }, color: '#9ca3af' }, grid: { color: 'rgba(0,0,0,.04)' } }
+      }
+    }
+  });
+}
+
 // ─── タイムライン ─────────────────────────────────────
 function buildTimeline() {
   const milestones = [
     { year: 2034, label: '住宅ローン\n控除終了', icon: '🏠', fire: false },
-    { year: 2036, label: '長男\n大学進学', icon: '🎓', fire: false },
-    { year: 2039, label: '長女\n大学進学', icon: '🎓', fire: false },
-    { year: 2043, label: '教育費\n終了', icon: '✅', fire: false },
-    { year: 2045, label: '夫\nセミFIRE', icon: '🔥', fire: true },
+    { year: 2036, label: '長男\n大学進学',   icon: '🎓', fire: false },
+    { year: 2039, label: '長女\n大学進学',   icon: '🎓', fire: false },
+    { year: 2043, label: '教育費\n終了',     icon: '✅', fire: false },
+    { year: 2045, label: '夫\nセミFIRE',    icon: '🔥', fire: true  },
     { year: 2053, label: '確定拠出\n受取開始', icon: '💰', fire: false },
-    { year: 2055, label: '完全FIRE\n達成！', icon: '🎉', fire: true },
+    { year: 2055, label: '完全FIRE\n達成！', icon: '🎉', fire: true  },
     { year: 2057, label: '住宅ローン\n完済', icon: '🏡', fire: false },
-    { year: 2059, label: '公的年金\n開始', icon: '👴', fire: false },
+    { year: 2059, label: '公的年金\n開始',  icon: '👴', fire: false },
   ];
   const track = document.getElementById('timeline');
   track.innerHTML = '';
@@ -539,25 +945,105 @@ function buildTable(d) {
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
   const net = d.totalIncome.map((v, i) => v - d.totalExpenses[i]);
+
   for (let i = 0; i < CONFIG.yearCount; i++) {
     const yr = START + i, age = yr - START + 30;
     const n = net[i];
+    const saveRate = d.totalIncome[i] > 0 ? Math.round(n / d.totalIncome[i] * 100) : 0;
     const isSemi = yr === FIRE_SEMI, isFull = yr === FIRE_FULL;
     const tr = document.createElement('tr');
     if (isSemi || isFull) tr.className = 'fr';
+
+    const incCell = editMode
+      ? `<input class="edit-input" data-key="totalIncome" data-year="${yr}" data-idx="${i}" value="${Math.round(d.totalIncome[i] / 10000)}" onchange="recordChange('totalIncome',${yr},${i},this)">`
+      : `<span class="pos">${fmt(d.totalIncome[i])}</span>`;
+    const expCell = editMode
+      ? `<input class="edit-input" data-key="totalExpenses" data-year="${yr}" data-idx="${i}" value="${Math.round(d.totalExpenses[i] / 10000)}" onchange="recordChange('totalExpenses',${yr},${i},this)">`
+      : `${fmt(d.totalExpenses[i])}`;
+
     tr.innerHTML = `
       <td>${yr}年${isFull ? ' 🎉' : isSemi ? ' 🔥' : ''}</td>
       <td>${age}歳</td>
-      <td class="pos">${fmt(d.totalIncome[i])}</td>
-      <td>${fmt(d.totalExpenses[i])}</td>
+      <td>${incCell}</td>
+      <td>${expCell}</td>
       <td class="${n >= 0 ? 'pos' : 'neg'}">${fmtNet(n)}</td>
       <td>${fmt(d.cash[i])}</td>
       <td>${fmt(d.stocks[i])}</td>
       <td>${fmt(d.pensionH[i])}</td>
       <td>${fmt(d.pensionW[i])}</td>
+      <td class="${saveRate >= 30 ? 'pos' : saveRate < 0 ? 'neg' : ''}">${saveRate}%</td>
       <td class="tot">${fmt(d.totalAssets[i])}</td>
     `;
     tbody.appendChild(tr);
+  }
+}
+
+// ─── 編集モード ───────────────────────────────────────
+function toggleEditMode() {
+  if (!editMode) {
+    const token = sessionStorage.getItem('fireToken') ||
+      prompt('編集用パスワードを入力してください（GAS Web App と共通）:');
+    if (!token) return;
+    sessionStorage.setItem('fireToken', token);
+  }
+  editMode = !editMode;
+  const btn = document.getElementById('editBtn');
+  btn.textContent = editMode ? '🔓 編集モード中' : '🔒 編集モード';
+  btn.classList.toggle('active', editMode);
+  document.getElementById('saveBtn').classList.toggle('visible', editMode);
+  document.getElementById('editBanner').classList.toggle('visible', editMode);
+  if (currentData) buildTable(currentData);
+  Object.keys(pendingChanges).forEach(k => delete pendingChanges[k]);
+}
+
+function recordChange(key, year, idx, input) {
+  const valMan = parseFloat(input.value) || 0;
+  const valYen = valMan * 10000;
+  if (!pendingChanges[key]) pendingChanges[key] = {};
+  pendingChanges[key][year] = { idx, value: valYen };
+  input.style.background = '#fef9c3';
+}
+
+async function saveChanges() {
+  const token = sessionStorage.getItem('fireToken');
+  if (!token) { alert('パスワードが設定されていません。'); return; }
+
+  if (!CONFIG.gasEndpoint) {
+    alert('CONFIG.gasEndpoint が未設定です。\nGAS Web App をデプロイしてURLを index.html の CONFIG.gasEndpoint に設定してください。');
+    return;
+  }
+
+  const updates = [];
+  for (const [key, years] of Object.entries(pendingChanges)) {
+    const label = currentData._labels[key];
+    if (!label) continue;
+    for (const [year, { value }] of Object.entries(years)) {
+      updates.push({ label, year: parseInt(year), value });
+    }
+  }
+
+  if (updates.length === 0) { alert('変更がありません。'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = '保存中…'; btn.disabled = true;
+
+  try {
+    const res = await fetch(CONFIG.gasEndpoint, {
+      method: 'POST',
+      body: JSON.stringify({ token, updates }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    const fails = (json.results || []).filter(r => !r.ok);
+    if (fails.length) alert('一部のセルが見つかりませんでした:\n' + fails.map(r => `${r.label} ${r.year}年`).join('\n'));
+    else alert(`✅ ${updates.length}件を保存しました。データを再取得します。`);
+    Object.keys(pendingChanges).forEach(k => delete pendingChanges[k]);
+    await init();
+  } catch (e) {
+    alert('保存エラー: ' + e.message);
+  } finally {
+    btn.textContent = '💾 スプレッドシートに保存'; btn.disabled = false;
   }
 }
 
@@ -566,10 +1052,15 @@ async function init() {
   showLoading();
   try {
     const data = await loadData();
+    currentData = data;
     hideLoading();
     buildCards(data);
     buildAssetChart(data);
     buildFlowChart(data);
+    buildIncomeDetailChart(data);
+    buildExpenseDetailChart(data);
+    buildFireRateChart(data);
+    buildScenarioChart(data);
     buildTimeline();
     buildTable(data);
     const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
